@@ -5,11 +5,19 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"io/ioutil"
-	"time"
 
 	"github.com/dgrijalva/jwt-go"
+)
+
+var (
+	ErrExpiredToken          = errors.New("jwt: token is expired")
+	ErrBeforeIssuedToken     = errors.New("jwt: before issued token")
+	ErrInvalidToken          = errors.New("jwt: invalid token")
+	ErrIssuerMismatchedToken = errors.New("jwt: issuer mismatched token")
+	ErrUnexpectedKeyType     = errors.New("jwt: unexpected key type")
+	ErrInvalidPrivateKey     = errors.New("jwt: invalid private key")
+	ErrInvalidPublicKey      = errors.New("jwt: invalid public key")
 )
 
 // Payload holds the custom fields of jwt
@@ -31,7 +39,7 @@ type Payload struct {
 	Accounts map[string]string `json:"accounts"`
 }
 
-// HasScope checks whether the payload has specified scope
+// HasScope reports whether the payload has specified scope
 func (p Payload) HasScope(scope string) bool {
 	for _, s := range p.Scopes {
 		if s == scope {
@@ -41,7 +49,7 @@ func (p Payload) HasScope(scope string) bool {
 	return false
 }
 
-// AddScopes appends a score
+// AddScopes appends scopes
 func (p *Payload) AddScopes(scopes ...string) {
 	p.Scopes = append(p.Scopes, scopes...)
 }
@@ -58,20 +66,19 @@ func (c Claims) Valid() error {
 	now := jwt.TimeFunc().Unix()
 
 	if c.VerifyExpiresAt(now, true) == false {
-		delta := time.Unix(now, 0).Sub(time.Unix(c.ExpiresAt, 0))
-		vErr.Inner = fmt.Errorf("token is expired by %v", delta)
+		vErr.Inner = ErrExpiredToken
 		vErr.Errors |= jwt.ValidationErrorExpired
 	}
 
 	// The claims below are optional, by default, so if they are set to the
 	// default value in Go, let's not fail the verification for them.
 	if c.VerifyIssuedAt(now, false) == false {
-		vErr.Inner = fmt.Errorf("token used before issued")
+		vErr.Inner = ErrBeforeIssuedToken
 		vErr.Errors |= jwt.ValidationErrorIssuedAt
 	}
 
 	if c.VerifyNotBefore(now, false) == false {
-		vErr.Inner = fmt.Errorf("token is not valid yet")
+		vErr.Inner = ErrInvalidToken
 		vErr.Errors |= jwt.ValidationErrorNotValidYet
 	}
 
@@ -82,12 +89,13 @@ func (c Claims) Valid() error {
 	return vErr
 }
 
-// Verifier ...
+// Verifier used to verify token
 type Verifier struct {
 	ecdsaPubkey *ecdsa.PublicKey
 	keyId       string
 }
 
+// NewVerifier creates a Verifier
 func NewVerifier(filename, keyId string) (*Verifier, error) {
 	key, err := loadPublicKey(filename)
 	if err != nil {
@@ -99,6 +107,7 @@ func NewVerifier(filename, keyId string) (*Verifier, error) {
 	}, nil
 }
 
+// Verify verifies the token and returns parsed claims
 func (v *Verifier) Verify(issuer, token string) (*Claims, error) {
 	var claims = new(Claims)
 	_, err := jwt.ParseWithClaims(token, claims, func(tok *jwt.Token) (interface{}, error) {
@@ -115,17 +124,18 @@ func (v *Verifier) Verify(issuer, token string) (*Claims, error) {
 		return nil, err
 	}
 	if claims.VerifyIssuer(issuer, true) == false {
-		return nil, fmt.Errorf("jwt: token issuer mismatched")
+		return nil, ErrIssuerMismatchedToken
 	}
 	return claims, nil
 }
 
-// Signer
+// Signer used to sign and verify token
 type Signer struct {
 	Verifier
 	ecdsaKey *ecdsa.PrivateKey
 }
 
+// NewSigner creates a Signer
 func NewSigner(filename, keyId string) (*Signer, error) {
 	key, err := loadPrivateKey(filename)
 	if err != nil {
@@ -158,7 +168,7 @@ func loadPrivateKey(filename string) (*ecdsa.PrivateKey, error) {
 func parsePrivateKey(bytes []byte) (*ecdsa.PrivateKey, error) {
 	block, _ := pem.Decode(bytes)
 	if block == nil {
-		return nil, errors.New("jwt: invalid ecdsa private key file")
+		return nil, ErrInvalidPrivateKey
 	}
 	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
@@ -168,7 +178,7 @@ func parsePrivateKey(bytes []byte) (*ecdsa.PrivateKey, error) {
 	case *ecdsa.PrivateKey:
 		return pk, nil
 	default:
-		return nil, errors.New("jwt: invalid ecdsa private key file")
+		return nil, ErrUnexpectedKeyType
 	}
 }
 
@@ -183,7 +193,7 @@ func loadPublicKey(filename string) (*ecdsa.PublicKey, error) {
 func parsePublicKey(bytes []byte) (*ecdsa.PublicKey, error) {
 	block, _ := pem.Decode(bytes)
 	if block == nil {
-		return nil, errors.New("jwt: invalid ecdsa private key file")
+		return nil, ErrInvalidPublicKey
 	}
 	key, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
@@ -193,6 +203,6 @@ func parsePublicKey(bytes []byte) (*ecdsa.PublicKey, error) {
 	case *ecdsa.PublicKey:
 		return pk, nil
 	default:
-		return nil, errors.New("jwt: invalid ecdsa private key file")
+		return nil, ErrUnexpectedKeyType
 	}
 }
