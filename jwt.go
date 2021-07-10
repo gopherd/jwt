@@ -22,21 +22,13 @@ var (
 
 // Payload holds the custom fields of jwt
 type Payload struct {
-	Salt   string   `json:"salt,omitempty"`
-	Ver    string   `json:"ver,omitempty"`
-	Uid    int64    `json:"uid,omitempty"`
-	IP     string   `json:"ip,omitempty"`
-	Loc    string   `json:"loc,omitempty"`
-	Chan   int      `json:"chan,omitempty"`
-	Os     string   `json:"os,omitempty"`
-	Flags  int64    `json:"flags,omitempty"`
-	Scopes []string `json:"scopes,omitempty"`
+	Salt   string   `json:"sa,omitempty"`
+	Ver    string   `json:"ve,omitempty"`
+	Scopes []string `json:"sp,omitempty"`
 
-	Name   string `json:"name,omitempty"`
-	Avatar string `json:"avatar,omitempty"`
-	Gender int    `json:"gender,omitempty"`
-
-	Accounts map[string]string `json:"accounts"`
+	ID       int64  `json:"id,omitempty"`
+	IP       string `json:"ip,omitempty"`
+	Userdata string `json:"us,omitempty"`
 }
 
 // HasScope reports whether the payload has specified scope
@@ -57,7 +49,7 @@ func (p *Payload) AddScopes(scopes ...string) {
 // Claims represents all the fields of jwt
 type Claims struct {
 	jwt.StandardClaims
-	Payload
+	Payload Payload `json:"payload"`
 }
 
 // Valid checks whether the claims is valid
