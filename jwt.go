@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"io/ioutil"
+	"strings"
 
 	"github.com/dgrijalva/jwt-go"
 )
@@ -22,28 +23,17 @@ var (
 
 // Payload holds the custom fields of jwt
 type Payload struct {
-	Salt   string   `json:"sa,omitempty"`
-	Ver    string   `json:"ve,omitempty"`
-	Scopes []string `json:"sp,omitempty"`
+	Salt  string `json:"salt,omitempty"`
+	Scope string `json:"scope,omitempty"`
 
-	ID       int64  `json:"id,omitempty"`
-	IP       string `json:"ip,omitempty"`
-	Userdata string `json:"us,omitempty"`
+	ID     int64                  `json:"id,omitempty"`
+	IP     string                 `json:"ip,omitempty"`
+	Values map[string]interface{} `json:"values,omitempty"`
 }
 
 // HasScope reports whether the payload has specified scope
-func (p Payload) HasScope(scope string) bool {
-	for _, s := range p.Scopes {
-		if s == scope {
-			return true
-		}
-	}
-	return false
-}
-
-// AddScopes appends scopes
-func (p *Payload) AddScopes(scopes ...string) {
-	p.Scopes = append(p.Scopes, scopes...)
+func (p *Payload) HasScope(scope string) bool {
+	return p.Scope == "*" || strings.Contains(p.Scope, scope)
 }
 
 // Claims represents all the fields of jwt
