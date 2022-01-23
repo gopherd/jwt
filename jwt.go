@@ -26,9 +26,9 @@ type Payload struct {
 	Salt  string `json:"salt,omitempty"`
 	Scope string `json:"scope,omitempty"`
 
-	ID     int64                  `json:"id,omitempty"`
-	IP     string                 `json:"ip,omitempty"`
-	Values map[string]interface{} `json:"values,omitempty"`
+	ID     int64          `json:"id,omitempty"`
+	IP     string         `json:"ip,omitempty"`
+	Values map[string]any `json:"values,omitempty"`
 }
 
 // HasScope reports whether the payload has specified scope
@@ -92,7 +92,7 @@ func NewVerifier(filename, keyId string) (*Verifier, error) {
 // Verify verifies the token and returns parsed claims
 func (v *Verifier) Verify(issuer, token string) (*Claims, error) {
 	var claims = new(Claims)
-	_, err := jwt.ParseWithClaims(token, claims, func(tok *jwt.Token) (interface{}, error) {
+	_, err := jwt.ParseWithClaims(token, claims, func(tok *jwt.Token) (any, error) {
 		kid, ok := tok.Header["kid"]
 		if !ok || kid == nil {
 			return nil, jwt.ErrInvalidKey
